@@ -20,16 +20,16 @@ import (
 	_ "image/gif" // register gif format
 	"image/jpeg"
 	"image/png"
-
+	
 	"github.com/disintegration/imaging"
 	"willnorris.com/go/gifresize"
 )
 
 // default compression quality of resized jpegs
-const defaultQuality = 95
+const defaultQuality = 90
 
 // resample filter used when resizing images
-var resampleFilter = imaging.Lanczos
+var resampleFilter = imaging.CatmullRom
 
 // Transform the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The

@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+ 	"os"
 	"strings"
 	"time"
 
@@ -95,8 +96,13 @@ func NewProxy(transport http.RoundTripper, cache Cache) *Proxy {
 
 // ServeHTTP handles incoming requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("ServeHTTP\n")
 	if r.URL.Path == "/favicon.ico" {
 		return // ignore favicon requests
+	}
+
+	if r.URL.Path == "/robots.txt" {
+		return // ignore robots requests
 	}
 
 	if r.URL.Path == "/health-check" {
@@ -113,6 +119,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // serveImage handles incoming requests for proxied images.
 func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("ServeImage\n")
 	req, err := NewRequest(r, p.DefaultBaseURL)
 	if err != nil {
 		msg := fmt.Sprintf("invalid request URL: %v", err)
@@ -129,6 +136,8 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
+	
+	fmt.Printf("serveImage requesting url : %s\n", req.String())
 
 	resp, err := p.Client.Get(req.String())
 	if err != nil {
@@ -276,6 +285,12 @@ type TransformingTransport struct {
 
 // RoundTrip implements the http.RoundTripper interface.
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	fmt.Printf("RoundTrip\n")
+	userAgent := os.Getenv("IMAGEPROXY_USER_AGENT")
+	if userAgent != "" {
+		req.Header.Set("User-Agent", userAgent)
+	}
+	
 	if req.URL.Fragment == "" {
 		// normal requests pass through
 		glog.Infof("fetching remote URL: %v", req.URL)
@@ -284,7 +299,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 
 	u := *req.URL
 	u.Fragment = ""
-	resp, err := t.CachingClient.Get(u.String())
+	resp, err := t.CachingClient.Get(strings.Replace(u.String(), "+", "%2b", -1))
 	if err != nil {
 		return nil, err
 	}
